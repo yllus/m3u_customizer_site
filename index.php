@@ -1,5 +1,205 @@
 <?php
 // M3U Playlist Customizer
+session_start();
+
+// Password protection
+$envFile = __DIR__ . '/.env';
+$newPasswordGenerated = false;
+$generatedPassword = '';
+
+// Check if .env file exists, if not create it with a random password
+if (!file_exists($envFile)) {
+    $randomPassword = bin2hex(random_bytes(8)); // 16 character hex string
+    file_put_contents($envFile, "PASSWORD=" . $randomPassword . "\n");
+    $newPasswordGenerated = true;
+    $generatedPassword = $randomPassword;
+}
+
+// Load password from .env
+$envContent = file_get_contents($envFile);
+preg_match('/PASSWORD=(.*)/', $envContent, $matches);
+$storedPassword = trim($matches[1] ?? '');
+
+// Check if user is authenticated
+$isAuthenticated = isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
+
+// Handle login attempt
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_password'])) {
+    if ($_POST['login_password'] === $storedPassword) {
+        $_SESSION['authenticated'] = true;
+        $isAuthenticated = true;
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit;
+    } else {
+        $loginError = "Incorrect password. Please try again.";
+    }
+}
+
+// Handle logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header('Location: ' . $_SERVER['PHP_SELF']);
+    exit;
+}
+
+// If not authenticated, show login page
+if (!$isAuthenticated) {
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Login - M3U Playlist Customizer</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+            
+            .login-container {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                padding: 40px;
+                max-width: 500px;
+                width: 100%;
+            }
+            
+            h1 {
+                color: #333;
+                margin-bottom: 20px;
+                text-align: center;
+            }
+            
+            .new-password-notice {
+                background: #d4edda;
+                color: #155724;
+                border: 2px solid #c3e6cb;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 25px;
+            }
+            
+            .new-password-notice h2 {
+                color: #155724;
+                margin-bottom: 10px;
+                font-size: 1.3em;
+            }
+            
+            .password-display {
+                background: #fff;
+                padding: 15px;
+                border-radius: 6px;
+                font-family: monospace;
+                font-size: 1.2em;
+                font-weight: bold;
+                color: #333;
+                margin: 15px 0;
+                text-align: center;
+                border: 2px solid #28a745;
+            }
+            
+            .warning {
+                color: #856404;
+                font-weight: 600;
+                margin-top: 10px;
+            }
+            
+            .form-group {
+                margin-bottom: 20px;
+            }
+            
+            label {
+                display: block;
+                margin-bottom: 8px;
+                color: #555;
+                font-weight: 600;
+            }
+            
+            input[type="password"] {
+                width: 100%;
+                padding: 12px;
+                border: 2px solid #ddd;
+                border-radius: 6px;
+                font-size: 14px;
+                transition: border-color 0.3s;
+            }
+            
+            input[type="password"]:focus {
+                outline: none;
+                border-color: #667eea;
+            }
+            
+            button {
+                background: #667eea;
+                color: white;
+                padding: 12px 30px;
+                border: none;
+                border-radius: 6px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: background 0.3s;
+                width: 100%;
+            }
+            
+            button:hover {
+                background: #5568d3;
+            }
+            
+            .error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+                padding: 12px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="login-container">
+            <h1>🔒 Login Required</h1>
+            
+            <?php if ($newPasswordGenerated): ?>
+                <div class="new-password-notice">
+                    <h2>⚠️ New Password Generated</h2>
+                    <p>A new password has been created for this installation. Please save this password securely:</p>
+                    <div class="password-display"><?php echo htmlspecialchars($generatedPassword); ?></div>
+                    <p class="warning">⚠️ This password is stored in the .env file. Keep it safe!</p>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (isset($loginError)): ?>
+                <div class="error"><?php echo $loginError; ?></div>
+            <?php endif; ?>
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label for="login_password">Password:</label>
+                    <input type="password" id="login_password" name="login_password" required autofocus>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
 // Handle playlist save request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_playlist'])) {
     $channels = json_decode($_POST['channels_data'], true);
@@ -135,6 +335,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['load_playlist']) && !
             margin-bottom: 30px;
             text-align: center;
             font-size: 2.5em;
+        }
+        
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .logout-btn:hover {
+            background: #c82333;
         }
         
         .load-section {
@@ -278,7 +503,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['load_playlist']) && !
 </head>
 <body>
     <div class="container">
-        <h1>🎬 M3U Playlist Customizer</h1>
+        <div class="header-section">
+            <h1 style="margin: 0;">🎬 M3U Playlist Customizer</h1>
+            <a href="?logout" class="logout-btn">🔒 Logout</a>
+        </div>
         
         <?php if (isset($successMessage)): ?>
             <div class="message success">
@@ -365,6 +593,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['load_playlist']) && !
                         const index = parseInt(this.dataset.index);
                         const field = this.dataset.field;
                         channelsData[index][field] = this.value;
+                        
+                        // When title changes, also update tvg_name
+                        if (field === 'title') {
+                            channelsData[index]['tvg_name'] = this.value;
+                        }
                     });
                 });
                 
