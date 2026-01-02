@@ -15,10 +15,12 @@ if (!file_exists($envFile)) {
     $generatedPassword = $randomPassword;
 }
 
-// Load password from .env
+// Load password and last M3U URL from .env
 $envContent = file_get_contents($envFile);
 preg_match('/PASSWORD=(.*)/', $envContent, $matches);
 $storedPassword = trim($matches[1] ?? '');
+preg_match('/LAST_M3U_URL=(.*)/', $envContent, $matches);
+$lastM3uUrl = trim($matches[1] ?? '');
 
 // Check if user is authenticated
 $isAuthenticated = isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
@@ -205,6 +207,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_playlist'])) {
     $channels = json_decode($_POST['channels_data'], true);
     
     if ($channels) {
+        // Sort channels alphabetically by title
+        usort($channels, function($a, $b) {
+            return strcasecmp($a['title'], $b['title']);
+        });
+        
         // Generate M3U content
         $m3uContent = "#EXTM3U\n";
         
@@ -246,6 +253,16 @@ $loadError = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['load_playlist']) && !empty($_POST['playlist_url'])) {
     $playlistUrl = $_POST['playlist_url'];
+    
+    // Save URL to .env file
+    $envContent = file_get_contents($envFile);
+    if (strpos($envContent, 'LAST_M3U_URL=') !== false) {
+        $envContent = preg_replace('/LAST_M3U_URL=.*/', 'LAST_M3U_URL=' . $playlistUrl, $envContent);
+    } else {
+        $envContent .= "LAST_M3U_URL=" . $playlistUrl . "\n";
+    }
+    file_put_contents($envFile, $envContent);
+    $lastM3uUrl = $playlistUrl;
     
     // Fetch M3U content
     $m3uContent = @file_get_contents($playlistUrl);
@@ -533,7 +550,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['load_playlist']) && !
                            name="playlist_url" 
                            placeholder="https://example.com/playlist.m3u" 
                            required
-                           value="<?php echo isset($_POST['playlist_url']) ? htmlspecialchars($_POST['playlist_url']) : ''; ?>">
+                           value="<?php echo isset($_POST['playlist_url']) ? htmlspecialchars($_POST['playlist_url']) : htmlspecialchars($lastM3uUrl); ?>">
                 </div>
                 <button type="submit" name="load_playlist">Load Playlist</button>
             </form>
