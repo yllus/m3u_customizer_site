@@ -241,6 +241,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_playlist'])) {
         if (file_put_contents($filepath, $m3uContent)) {
             $successMessage = "Playlist saved successfully as: " . $filename;
             $downloadLink = 'playlists/' . $filename;
+            
+            // Update LAST_M3U_URL in .env with the URL to the saved file
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'];
+            $scriptPath = dirname($_SERVER['PHP_SELF']);
+            $playlistUrl = $protocol . '://' . $host . $scriptPath . '/playlists/' . $filename;
+            
+            $envContent = file_get_contents($envFile);
+            if (strpos($envContent, 'LAST_M3U_URL=') !== false) {
+                $envContent = preg_replace('/LAST_M3U_URL=.*/', 'LAST_M3U_URL=' . $playlistUrl, $envContent);
+            } else {
+                $envContent .= "LAST_M3U_URL=" . $playlistUrl . "\n";
+            }
+            file_put_contents($envFile, $envContent);
+            $lastM3uUrl = $playlistUrl;
         } else {
             $errorMessage = "Error saving playlist file.";
         }
@@ -265,7 +280,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['load_playlist']) && !
     $lastM3uUrl = $playlistUrl;
     
     // Fetch M3U content
-    $m3uContent = @file_get_contents($playlistUrl);
+    $context = stream_context_create([
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+        ]
+    ]);
+    $m3uContent = @file_get_contents($playlistUrl, false, $context);
     
     if ($m3uContent === false) {
         $loadError = "Error: Could not load playlist from URL.";
