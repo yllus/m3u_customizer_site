@@ -249,6 +249,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_playlist'])) {
             
             // Update LAST_M3U_URL in .env with the URL to the saved file
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            
+            // Check CloudFlare headers for HTTPS
+            if (isset($_SERVER['HTTP_CF_VISITOR'])) {
+                $cfVisitor = json_decode($_SERVER['HTTP_CF_VISITOR'], true);
+                if (isset($cfVisitor['scheme']) && $cfVisitor['scheme'] === 'https') {
+                    $protocol = 'https';
+                }
+            }
+            
+            // Check CloudFront headers for HTTPS
+            if (isset($_SERVER['HTTP_CLOUDFRONT_FORWARDED_PROTO']) && $_SERVER['HTTP_CLOUDFRONT_FORWARDED_PROTO'] === 'https') {
+                $protocol = 'https';
+            }
+            
             $host = $_SERVER['HTTP_HOST'];
             $scriptPath = dirname($_SERVER['PHP_SELF']) . '/playlists/';
             $scriptPath = preg_replace('#/+#','/',$scriptPath);
