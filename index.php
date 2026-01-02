@@ -10,7 +10,12 @@ $generatedPassword = '';
 // Check if .env file exists, if not create it with a random password
 if (!file_exists($envFile)) {
     $randomPassword = bin2hex(random_bytes(8)); // 16 character hex string
-    file_put_contents($envFile, "PASSWORD=" . $randomPassword . "\n");
+    $writeResult = file_put_contents($envFile, "PASSWORD=" . $randomPassword . "\n");
+    
+    if ($writeResult === false) {
+        die('<html><head><title>Setup Error</title><style>body{font-family:sans-serif;padding:40px;background:#f44336;color:#fff;text-align:center;}h1{font-size:2em;margin-bottom:20px;}p{font-size:1.2em;line-height:1.6;}</style></head><body><h1>❌ Setup Error</h1><p>Could not create .env file. Please ensure the folder is writable and try again.</p><p style="font-size:0.9em;margin-top:30px;">The web server needs write permissions to create the .env configuration file.</p></body></html>');
+    }
+    
     $newPasswordGenerated = true;
     $generatedPassword = $randomPassword;
 }
