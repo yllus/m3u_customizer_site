@@ -1,0 +1,8 @@
+# Deny access to hidden files and directories (starting with .)
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Also deny access to directories starting with .
+RedirectMatch 403 /\..*$
