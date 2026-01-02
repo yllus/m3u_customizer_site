@@ -250,9 +250,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_playlist'])) {
             // Update LAST_M3U_URL in .env with the URL to the saved file
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'];
-            $scriptPath = dirname($_SERVER['PHP_SELF']);
-            $playlistUrl = $protocol . '://' . $host . $scriptPath . '/playlists/' . $filename;
-            
+            $scriptPath = dirname($_SERVER['PHP_SELF']) . '/playlists/';
+            $scriptPath = preg_replace('#/+#','/',$scriptPath);
+            $playlistUrl = $protocol . '://' . $host . $scriptPath . $filename;
+
             $envContent = file_get_contents($envFile);
             if (strpos($envContent, 'LAST_M3U_URL=') !== false) {
                 $envContent = preg_replace('/LAST_M3U_URL=.*/', 'LAST_M3U_URL=' . $playlistUrl, $envContent);
