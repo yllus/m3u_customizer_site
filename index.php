@@ -20,12 +20,22 @@ if (!file_exists($envFile)) {
     $generatedPassword = $randomPassword;
 }
 
-// Load password and last M3U URL from .env
+// Load password, last M3U URL, and playlist filename from .env
 $envContent = file_get_contents($envFile);
 preg_match('/PASSWORD=(.*)/', $envContent, $matches);
 $storedPassword = trim($matches[1] ?? '');
 preg_match('/LAST_M3U_URL=(.*)/', $envContent, $matches);
 $lastM3uUrl = trim($matches[1] ?? '');
+preg_match('/PLAYLIST_FILENAME=(.*)/', $envContent, $matches);
+$playlistFilename = trim($matches[1] ?? '');
+
+// Generate playlist filename if not exists
+if (empty($playlistFilename)) {
+    $playlistFilename = 'playlist_' . bin2hex(random_bytes(8)) . '.m3u';
+    $envContent = file_get_contents($envFile);
+    $envContent .= "PLAYLIST_FILENAME=" . $playlistFilename . "\n";
+    file_put_contents($envFile, $envContent);
+}
 
 // Check if user is authenticated
 $isAuthenticated = isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
@@ -239,8 +249,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_playlist'])) {
             $m3uContent .= $extinfLine . $url . "\n";
         }
         
-        // Save to file with random name
-        $filename = uniqid('playlist_', true) . '.m3u';
+        // Save to file with persistent random filename
+        $filename = $playlistFilename;
         $filepath = __DIR__ . '/playlists/' . $filename;
         
         if (file_put_contents($filepath, $m3uContent)) {
